@@ -201,20 +201,8 @@ export default function Sidebar({ isOpen }: Readonly<SidebarProps>) {
     });
   }, [pathname]);
 
-  useEffect(() => {
-    const logoutListener = () => {
-      if (globalThis.window !== undefined) {
-        globalThis.window.localStorage.removeItem("admin_token");
-      }
-      router.push("/?logout=1");
-    };
-
-    document.addEventListener("logout", logoutListener);
-
-    return () => {
-      document.removeEventListener("logout", logoutListener);
-    };
-  }, [router]);
+  // Logout is now handled by Header component via Laravel logout endpoint
+  // No need for token cleanup since we use HTTP-only cookies
 
   return (
     <aside

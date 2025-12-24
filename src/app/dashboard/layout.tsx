@@ -4,7 +4,6 @@ import { useState } from "react";
 import { Toaster } from "react-hot-toast";
 import Sidebar from "@/app/dashboard/components/Sidebar";
 import Header from "@/app/dashboard/components/Header";
-import AuthGuard from "@/utils/authGuard";
 
 export default function AdminLayout({
   children,
@@ -16,29 +15,27 @@ export default function AdminLayout({
   const handleToggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
 
   return (
-    <AuthGuard>
-      <div className="flex min-h-screen bg-[#f9fafb] overflow-hidden">
-        <Toaster position="top-right" />
+    <div className="flex min-h-screen bg-[#f9fafb] overflow-hidden">
+      <Toaster position="top-right" />
 
-        {/* Sidebar */}
-        <Sidebar isOpen={isSidebarOpen} />
+      {/* Sidebar */}
+      <Sidebar isOpen={isSidebarOpen} />
 
-        {/* Content */}
-        <div
-          className={`flex flex-col flex-1 transition-all duration-300 ${
-            isSidebarOpen ? "ml-64" : "ml-0"
-          }`}
-        >
-          <Header
-            onToggleSidebar={handleToggleSidebar}
-            isSidebarOpen={isSidebarOpen}
-          />
+      {/* Content */}
+      <div
+        className={`flex flex-col flex-1 transition-all duration-300 ${
+          isSidebarOpen ? "ml-64" : "ml-0"
+        }`}
+      >
+        <Header
+          onToggleSidebar={handleToggleSidebar}
+          isSidebarOpen={isSidebarOpen}
+        />
 
-          <main className="flex-1 p-6 mt-16 overflow-y-auto bg-[#f9fafb] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-            <div className="min-h-[80vh] space-y-8">{children}</div>
-          </main>
-        </div>
+        <main className="flex-1 p-6 mt-16 overflow-y-auto bg-[#f9fafb] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+          <div className="min-h-[80vh] space-y-8">{children}</div>
+        </main>
       </div>
-    </AuthGuard>
+    </div>
   );
 }

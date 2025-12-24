@@ -7,13 +7,18 @@ const nextConfig = {
     unoptimized: true,
   },
 
-  // Dev-time proxy: forward any /api requests to the local Laravel backend.
-  // This avoids CORS and lets the frontend call `/api/...` as a simple relative path.
+  // Proxy: forward any /api requests to the backend Laravel server.
+  // In production (Vercel), use NEXT_PUBLIC_API_URL environment variable.
+  // In development, fallback to localhost.
   async rewrites() {
+    const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+    // Remove /api suffix if present to avoid double /api/api
+    const baseUrl = backendUrl.replace(/\/api\/?$/, '');
+    
     return [
       {
         source: '/api/:path*',
-        destination: 'http://127.0.0.1:8000/api/:path*',
+        destination: `${baseUrl}/api/:path*`,
       },
     ];
   },

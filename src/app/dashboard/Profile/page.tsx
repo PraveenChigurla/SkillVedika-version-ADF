@@ -27,26 +27,9 @@ export default function ProfilePage() {
     try {
       setLoading(true);
 
-      // Attach stored token if available (some login flows store the token in localStorage)
-      const tokenKeys = ["token", "admin_token", "access_token"];
-      let token: string | null = null;
-      if (globalThis.window !== undefined) {
-        for (const k of tokenKeys) {
-          const t = globalThis.window.localStorage.getItem(k);
-          if (t) {
-            token = t;
-            break;
-          }
-        }
-      }
-
-      const config: {
-        withCredentials: boolean;
-        headers?: Record<string, string>;
-      } = { withCredentials: true };
-      if (token) config.headers = { Authorization: `Bearer ${token}` };
-
-      const res = await axios.get("/admin/profile", config);
+      // Authentication is handled via HTTP-only cookies automatically
+      // No need to attach tokens manually
+      const res = await axios.get("/admin/profile");
       const data = res.data.data || res.data;
       setProfile(data);
       setName(data.name || "");
@@ -107,20 +90,7 @@ export default function ProfilePage() {
     }
   };
 
-  // Helper: Get stored token from localStorage
-  const getStoredToken = (): string | null => {
-    if (globalThis.window === undefined) {
-      return null;
-    }
-    const tokenKeys = ["token", "admin_token", "access_token"];
-    for (const k of tokenKeys) {
-      const t = globalThis.window.localStorage.getItem(k);
-      if (t) {
-        return t;
-      }
-    }
-    return null;
-  };
+  // Authentication is handled via HTTP-only cookies, no token storage needed
 
   // Helper: Persist avatar to localStorage and notify header
   const persistAvatar = (avatarUrl: string): void => {
@@ -153,19 +123,11 @@ export default function ProfilePage() {
     }
   };
 
-  // Helper: Build request config with token
-  const buildRequestConfig = (token: string | null): {
+  // Helper: Build request config (authentication via HTTP-only cookies)
+  const buildRequestConfig = (): {
     withCredentials: boolean;
-    headers?: Record<string, string>;
   } => {
-    const config: {
-      withCredentials: boolean;
-      headers?: Record<string, string>;
-    } = { withCredentials: true };
-    if (token) {
-      config.headers = { Authorization: `Bearer ${token}` };
-    }
-    return config;
+    return { withCredentials: true }; // Cookies are sent automatically
   };
 
   // Helper: Handle successful profile update
@@ -243,10 +205,11 @@ export default function ProfilePage() {
       }
 
       await ensureCsrfCookie();
-      const token = getStoredToken();
-      const config = buildRequestConfig(token);
+      const config = buildRequestConfig();
       const res = await axios.post("/admin/update", payload, config);
 
+      // Backend returns: { status: true, data: $admin, token: $token }
+      // Token is in HTTP-only cookie, no need to store it
       if (res.data.status === true || res.status === 200) {
         const returned = res.data.data ?? res.data.user ?? res.data;
         handleUpdateSuccess(returned, profile);

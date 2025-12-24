@@ -50,11 +50,7 @@ export default function Page() {
     return { part1: (html ?? "").toString().trim(), part2: "" };
   };
 
-  // Helper: Get stored token from localStorage
-  const getStoredToken = (): string | null => {
-    if (globalThis.window === undefined) return null;
-    return globalThis.window.localStorage.getItem("admin_token");
-  };
+  // Authentication is handled via HTTP-only cookies, no token storage needed
 
   // Helper: Build hero title from parts
   const buildHeroTitle = (heroTitle: unknown): string => {
@@ -251,12 +247,10 @@ export default function Page() {
       const headers: Record<string, string> = {
         "Content-Type": "application/json",
       };
-      const storedToken = getStoredToken();
-      if (storedToken) headers["Authorization"] = `Bearer ${storedToken}`;
 
       const res = await fetch("/api/corporate-training", {
         method: "POST",
-        credentials: "same-origin",
+        credentials: "include", // Send HTTP-only cookies automatically
         headers,
         body: JSON.stringify(payload),
       });
@@ -359,11 +353,9 @@ export default function Page() {
     (async () => {
       try {
         const headers: Record<string, string> = { Accept: "application/json" };
-        const storedToken = getStoredToken();
-        if (storedToken) headers["Authorization"] = `Bearer ${storedToken}`;
 
         const res = await fetch("/api/corporate-training", {
-          credentials: "same-origin",
+          credentials: "include", // Send HTTP-only cookies automatically
           headers,
         });
         if (!res.ok) {

@@ -89,14 +89,9 @@ export default function TermsAndConditionsPage() {
     setIsSaving(true);
 
     try {
-      const token =
-        globalThis.window !== undefined
-          ? globalThis.window.localStorage.getItem("admin_token")
-          : null;
       const headers: Record<string, string> = {
         "Content-Type": "application/json",
       };
-      if (token) headers["Authorization"] = `Bearer ${token}`;
 
       const payload = {
         title: memoTitle,
@@ -105,6 +100,7 @@ export default function TermsAndConditionsPage() {
 
       const res = await fetch("/api/terms-and-conditions", {
         method: "POST",
+        credentials: "include", // Send HTTP-only cookies automatically
         headers,
         body: JSON.stringify(payload),
       });
@@ -159,16 +155,12 @@ export default function TermsAndConditionsPage() {
   useEffect(() => {
     (async () => {
       try {
-        const token =
-          globalThis.window !== undefined
-            ? globalThis.window.localStorage.getItem("admin_token")
-            : null;
         const headers: Record<string, string> = {
           Accept: "application/json",
         };
-        if (token) headers["Authorization"] = `Bearer ${token}`;
 
         const res = await fetch("/api/terms-and-conditions", {
+          credentials: "include", // Send HTTP-only cookies automatically
           headers,
           cache: "no-store",
         });

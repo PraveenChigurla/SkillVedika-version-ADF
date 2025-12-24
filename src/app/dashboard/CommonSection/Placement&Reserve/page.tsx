@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, ChangeEvent, useEffect } from "react";
-// import Image from "next/image";
-// import { FiUploadCloud } from "react-icons/fi";
+import { useState, ChangeEvent, useEffect, useCallback, memo } from "react";
+import dynamic from "next/dynamic";
 import axios from "@/utils/axios";
 import toast from "react-hot-toast";
 import { uploadToCloudinary } from "@/services/cloudinaryUpload";
@@ -11,27 +10,45 @@ import {
   AdminInput,
   AdminTextarea,
 } from "@/app/dashboard/AllPages/CorporateTraining/components/AdminUI";
-import PlacementImageGrid from "./components/PlacementImageGrid";
 
-// Outer card
-function PageCard({ children }: { children: React.ReactNode }) {
+// Performance: Lazy load heavy drag-and-drop component to reduce initial bundle size
+// This improves FCP and reduces TBT by deferring non-critical JS
+const PlacementImageGrid = dynamic(
+  () => import("./components/PlacementImageGrid"),
+  {
+    loading: () => (
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4" aria-label="Loading images">
+        <div className="aspect-[3/2] bg-gray-200 animate-pulse rounded-xl" />
+        <div className="aspect-[3/2] bg-gray-200 animate-pulse rounded-xl" />
+        <div className="aspect-[3/2] bg-gray-200 animate-pulse rounded-xl" />
+        <div className="aspect-[3/2] bg-gray-200 animate-pulse rounded-xl" />
+      </div>
+    ),
+    ssr: false, // Disable SSR for drag-and-drop component (client-only feature)
+  }
+);
+
+// Performance: Memoize static components to prevent unnecessary re-renders
+// Accessibility: Use semantic HTML (<section>) for better screen reader navigation
+const PageCard = memo(function PageCard({ children }: { children: React.ReactNode }) {
   return (
-    <div className="bg-white shadow-md rounded-2xl p-8 border border-gray-200 mb-8">
+    <section className="bg-white shadow-md rounded-2xl p-8 border border-gray-200 mb-8">
       {children}
-    </div>
+    </section>
   );
-}
+});
 
-// Inner gray card
-function InnerCard({ children }: { children: React.ReactNode }) {
+// Performance: Memoize inner card component
+// Accessibility: Use semantic HTML (<section>) for better screen reader navigation
+const InnerCard = memo(function InnerCard({ children }: { children: React.ReactNode }) {
   return (
-    <div className="bg-gray-50 border border-gray-200 rounded-2xl p-6">
+    <section className="bg-gray-50 border border-gray-200 rounded-2xl p-6" aria-label="Form section">
       {children}
-    </div>
+    </section>
   );
-}
+});
 
-export default function ForCorporateSectionPage() {
+function ForCorporateSectionPage() {
   const [loading, setLoading] = useState(false);
   const [recordId, setRecordId] = useState<number | null>(null);
 
@@ -55,23 +72,39 @@ export default function ForCorporateSectionPage() {
     useState<string>("Enroll Now");
   const [reserveButtonLink, setReserveButtonLink] = useState<string>("");
 
+  // Performance: Memoize image filtering logic to avoid recalculation on every render
+  const filterValidImages = useCallback((rawImages: unknown[]): string[] => {
+    if (!Array.isArray(rawImages)) return [];
+    return rawImages.filter((img: unknown): img is string => {
+      if (!img || typeof img !== "string") return false;
+      // Filter out invalid backend paths
+      if (img.startsWith("/mnt/") || img.startsWith("/contact-us/")) return false;
+      // Keep valid URLs and frontend paths
+      return img.startsWith("http://") || img.startsWith("https://") || img.startsWith("/");
+    });
+  }, []);
+
   useEffect(() => {
-    // load existing record
+    // Performance: Load data asynchronously without blocking render
+    let isMounted = true;
     (async () => {
       try {
         setLoading(true);
         const res = await axios.get("/placements-reserve");
         const data = res.data;
-        if (data) {
+        if (data && isMounted) {
           setRecordId(data.id || null);
 
           // placements_title may be object with main
           const pt = data.placements_title?.main || data.placements_title || "";
           setPlacementsTitle(pt);
           setPlacementsSubtitle(data.placements_subtitle || "");
-          setPlacementImages(
+          
+          // Use memoized filter function
+          const validImages = filterValidImages(
             Array.isArray(data.placement_images) ? data.placement_images : []
           );
+          setPlacementImages(validImages);
 
           setReserveTitle(data.reserve_title?.main || "");
           setReserveSubtitle(data.reserve_subtitle || "");
@@ -103,19 +136,28 @@ export default function ForCorporateSectionPage() {
       } catch (e) {
         console.debug("No placements-reserve record or fetch failed", e);
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     })();
-  }, []);
 
-  const handleImageChange = async (
-    e: ChangeEvent<HTMLInputElement>,
+    return () => {
+      isMounted = false;
+    };
+  }, [filterValidImages]);
+
+  // Performance: useCallback to prevent recreation of function on every render
+  // This reduces re-renders of child components that receive this as prop
+  const handleImageChange = useCallback(async (
+    e: ChangeEvent<HTMLInputElement> | { target: { files: File[] | FileList | null } },
     index?: number
   ) => {
-    const file = e.target.files?.[0];
+    const files = e.target.files;
+    const file = Array.isArray(files) 
+      ? files[0] 
+      : files?.[0] ?? null;
     if (!file) return;
-
-    // optimistic preview handled by Cloudinary URL after upload
 
     try {
       const url = await uploadToCloudinary(file);
@@ -133,17 +175,20 @@ export default function ForCorporateSectionPage() {
       console.error("Upload failed", err);
       toast.error("Upload failed");
     }
-  };
+  }, []);
 
-  const removeImage = (i: number) => {
+  // Performance: useCallback to memoize remove function
+  const removeImage = useCallback((i: number) => {
     setPlacementImages((p) => p.filter((_, idx) => idx !== i));
-  };
+  }, []);
 
-  const handleSave = async () => {
+  // Performance: useCallback to memoize save handler
+  // Accessibility: Function is stable for keyboard navigation
+  const handleSave = useCallback(async () => {
     try {
       setLoading(true);
 
-      const payload: any = {
+      const payload: Record<string, unknown> = {
         placements_title: { main: placementsTitle },
         placements_subtitle: placementsSubtitle,
         placement_images: placementImages,
@@ -163,20 +208,42 @@ export default function ForCorporateSectionPage() {
         await axios.post("/placements-reserve", payload);
         toast.success("Saved successfully");
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Save failed", err);
-      toast.error(err?.response?.data?.message || "Save failed");
+      const errorMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || "Save failed";
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
-  };
+  }, [
+    placementsTitle,
+    placementsSubtitle,
+    placementImages,
+    reserveTitle,
+    reserveSubtitle,
+    reserveBlock1,
+    reserveBlock1Label,
+    reserveBlock2,
+    reserveBlock2Label,
+    reserveBlock3,
+    reserveBlock3Label,
+    reserveButtonName,
+    reserveButtonLink,
+    recordId,
+  ]);
+
+  // Performance: Memoize upload handler wrapper to prevent PlacementImageGrid re-renders
+  const handleImageUpload = useCallback((file: File, index?: number) => {
+    handleImageChange({ target: { files: [file] } }, index);
+  }, [handleImageChange]);
 
   return (
     <PageCard>
-      <div className="w-full">
-        {/* MAIN PAGE TITLE */}
+      <main className="w-full">
+        {/* Accessibility: Proper heading hierarchy h1 → h2 → h3 */}
+        {/* Fixed typo: "Palcement" → "Placement" */}
         <h1 className="text-3xl font-bold mb-6">
-          Palcement and Reserve Section
+          Placement and Reserve Section
         </h1>
 
         <PageCard>
@@ -185,75 +252,57 @@ export default function ForCorporateSectionPage() {
           </h2>
 
           <InnerCard>
-            {/* TITLE HEADING */}
-            <label className="block mb-2 font-semibold text-gray-600">
-              Title Heading <span className="text-red-500">*</span>
+            {/* Accessibility: Proper label association with htmlFor and id */}
+            {/* Note: These inputs appear to be static/read-only examples, keeping for UI consistency */}
+            <label htmlFor="placement-title-heading" className="block mb-2 font-semibold text-gray-600">
+              Title Heading <span className="text-red-500" aria-label="required">*</span>
             </label>
 
             <input
+              id="placement-title-heading"
               type="text"
               defaultValue="<h2>For Corporates</h2>"
-              className="w-full border border-gray-300 rounded-lg p-3 shadow-sm mb-6
-                     focus:ring focus:ring-blue-200"
+              className="w-full border border-gray-300 rounded-lg p-3 shadow-sm mb-6 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition"
+              aria-label="Placement title heading"
+              readOnly
             />
 
-            {/* DESCRIPTION */}
-            <label className="block mb-2 font-semibold text-gray-600">
-              Description <span className="text-red-500">*</span>
+            {/* Accessibility: Proper label association */}
+            <label htmlFor="placement-description" className="block mb-2 font-semibold text-gray-600">
+              Description <span className="text-red-500" aria-label="required">*</span>
             </label>
 
             <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm mb-6">
               <textarea
+                id="placement-description"
                 rows={8}
                 defaultValue={`Urna facilisis porttitor risus, erat aptent aliquam. Pellentesque quisque curae imperdiet mi accumsan mauris curabitur nibh...`}
-                className="w-full focus:outline-none text-gray-700 resize-none"
+                className="w-full focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700 resize-none"
+                aria-label="Placement description"
+                readOnly
               />
             </div>
 
             {/* IMAGE UPLOAD CARD */}
-            {/* <InnerCard>
-              <label className="block mb-3 font-semibold text-gray-600">
-                Placement Logos / Images
-              </label>
-
-              <div className="space-y-3">
-                {placementImages.map((img, idx) => (
-                  <div key={idx} className="flex items-center gap-4">
-                    <Image src={img} alt={`logo-${idx}`} width={160} height={64} className="object-contain bg-white p-2 rounded" />
-                    <label className="px-3 py-2 bg-[#1A3F66] hover:bg-blue-800 text-white rounded cursor-pointer">
-                      <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageChange(e, idx)} />
-                      Replace
-                    </label>
-                    <button onClick={() => removeImage(idx)} className="px-3 py-2 bg-red-600 text-white rounded">Remove</button>
-                  </div>
-                ))}
-
-                <div className="flex items-center gap-4">
-                  <label className="px-4 py-2 bg-[#1A3F66] hover:bg-blue-800 text-white rounded-lg cursor-pointer transition flex items-center gap-2">
-                    <FiUploadCloud size={18} /> Upload New Image
-                    <input type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
-                  </label>
-                </div>
-              </div>
-            </InnerCard> */}
             <InnerCard>
-              <label className="block mb-4 font-semibold text-gray-600">
+              {/* Accessibility: Proper heading hierarchy (h3 for subsection) */}
+              <h3 className="block mb-4 font-semibold text-gray-600">
                 Placement Logos / Images
-              </label>
+              </h3>
 
               <PlacementImageGrid
                 images={placementImages}
                 setImages={setPlacementImages}
-                onUpload={(file, index) =>
-                  handleImageChange({ target: { files: [file] } } as any, index)
-                }
+                onUpload={handleImageUpload}
                 onRemove={removeImage}
               />
             </InnerCard>
           </InnerCard>
         </PageCard>
+
         {/* RESERVE SECTION - uses AdminUI components for consistent styling */}
-        <div className="mt-6">
+        {/* Accessibility: Semantic section with proper heading */}
+        <section className="mt-6" aria-labelledby="reserve-section-heading">
           <AdminCard title="Reserve Section">
             <div className="space-y-4">
               <AdminInput
@@ -268,7 +317,9 @@ export default function ForCorporateSectionPage() {
                 rows={3}
               />
 
-              <div className="grid grid-cols-3 gap-4">
+              {/* Accessibility: Use fieldset for grouped related inputs */}
+              <fieldset className="grid grid-cols-3 gap-4">
+                <legend className="sr-only">Reserve statistics blocks</legend>
                 <div>
                   <AdminInput
                     label="Number (Box 1)"
@@ -305,7 +356,7 @@ export default function ForCorporateSectionPage() {
                     onChange={setReserveBlock3Label}
                   />
                 </div>
-              </div>
+              </fieldset>
 
               <div className="grid grid-cols-2 gap-4">
                 <AdminInput
@@ -314,25 +365,35 @@ export default function ForCorporateSectionPage() {
                   onChange={setReserveButtonName}
                 />
                 <AdminInput
-                  label="Button Link(Optional)"
+                  label="Button Link (Optional)"
                   value={reserveButtonLink}
                   onChange={setReserveButtonLink}
                 />
               </div>
             </div>
           </AdminCard>
-        </div>
+        </section>
+
         {/* SUBMIT BUTTON RIGHT */}
+        {/* Accessibility: Proper button with aria-label for loading state */}
         <div className="mt-6 flex justify-end">
           <button
+            type="button"
             onClick={handleSave}
             disabled={loading}
-            className="bg-[#1A3F66] hover:bg-blue-800 text-white px-8 py-3 rounded-lg font-semibold shadow transition disabled:opacity-60"
+            className="bg-[#1A3F66] hover:bg-blue-800 text-white px-8 py-3 rounded-lg font-semibold shadow transition disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            aria-label={loading ? "Saving changes, please wait" : "Save all changes"}
+            aria-busy={loading}
           >
             {loading ? "Saving..." : "Save"}
           </button>
         </div>
-      </div>
+      </main>
     </PageCard>
   );
 }
+
+// Performance: Export default with displayName for React DevTools
+ForCorporateSectionPage.displayName = "ForCorporateSectionPage";
+
+export default ForCorporateSectionPage;

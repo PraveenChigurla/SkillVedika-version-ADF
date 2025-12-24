@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
@@ -81,28 +81,35 @@ function HeadingButton({ level, command, active }) {
 export default function TipTapEditor({ value, onChange }) {
   const [isUploadingImage, setIsUploadingImage] = useState(false);
 
+  // Memoize extensions to prevent duplicate registrations when multiple editors exist
+  const extensions = useMemo(() => [
+    StarterKit.configure({
+      // Explicitly disable extensions that we're adding separately to avoid duplicates
+      link: false,
+      underline: false, // Disable underline in StarterKit since we add it separately
+    }),
+    Underline,
+    Image.configure({
+      inline: false,
+      allowBase64: false,
+      HTMLAttributes: {
+        class: "max-w-full h-auto rounded-lg",
+      },
+    }),
+    Link.configure({
+      openOnClick: false,
+      HTMLAttributes: {
+        class: "text-blue-600 underline",
+      },
+    }),
+    TextAlign.configure({
+      types: ["heading", "paragraph"],
+      defaultAlignment: "left",
+    }),
+  ], []);
+
   const editor = useEditor({
-    extensions: [
-      StarterKit,
-      Underline,
-      Image.configure({
-        inline: false,
-        allowBase64: false,
-        HTMLAttributes: {
-          class: "max-w-full h-auto rounded-lg",
-        },
-      }),
-      Link.configure({
-        openOnClick: false,
-        HTMLAttributes: {
-          class: "text-blue-600 underline",
-        },
-      }),
-      TextAlign.configure({
-        types: ["heading", "paragraph"],
-        defaultAlignment: "left",
-      }),
-    ],
+    extensions,
     content: value,
     immediatelyRender: false,
     onUpdate({ editor }) {

@@ -15,7 +15,7 @@ import toast from "react-hot-toast";
  * - You requested T1: all rich-text fields will be empty ("") by default.
  * - Images keep a DEFAULT_IMAGE preview so UI doesn't look broken; text fields are empty.
  */
-const DEFAULT_IMAGE = "/mnt/data/ec989779-babf-41a3-9255-650182657d0c.png";
+const DEFAULT_IMAGE = "/default-uploads/Skill-vedika-Logo.jpg";
 
 type Point = {
   id: string;

@@ -8,7 +8,6 @@ import { useState, useRef, useEffect } from "react";
 // import Image from "next/image";
 import { FaBars, FaTimes, FaUser, FaSignOutAlt } from "react-icons/fa";
 import { useRouter } from "next/navigation";
-import axios from "../../../utils/axios";
 
 interface HeaderProps {
   readonly onToggleSidebar: () => void;
@@ -103,32 +102,31 @@ export default function Header({
   /* =====================================================
      LOGOUT HANDLER
   ===================================================== */
-  const handleLogout = () => {
-    // attempt to logout on server (invalidate session)
-    // Promise rejection is already handled by .catch()
-    axios.post("/admin/logout").catch((error_) => {
-      // Network errors are expected if server is unreachable
-      if (process.env.NODE_ENV === "development") {
-        console.debug("Logout request failed (continuing):", error_);
-      }
-    });
-
-    // clear local debug tokens and avatar
-    try {
-      if (globalThis.window !== undefined) {
-        globalThis.window.localStorage.removeItem("admin_token");
-        globalThis.window.localStorage.removeItem("admin_avatar");
-      }
-    } catch (error_) {
-      // Storage access failed - log in development only
-      if (process.env.NODE_ENV === "development") {
-        console.debug("Failed to clear localStorage:", error_);
-      }
-    }
+  const handleLogout = async () => {
     setIsMenuOpen(false);
 
-    // redirect to login with logout toast
+    // Clear local avatar first
+    try {
+      if (globalThis.window !== undefined) {
+        globalThis.window.localStorage.removeItem("admin_avatar");
+      }
+    } catch {
+      // Ignore storage errors
+    }
+
+    // Redirect immediately - don't wait for logout API call
+    // Backend will handle cookie clearing if session is still valid
     router.push("/?logout=1");
+
+    // Try to call logout endpoint in background, but suppress all errors
+    // Use fetch directly to avoid axios interceptors showing errors
+    fetch("/api/admin/logout", {
+      method: "POST",
+      credentials: "include",
+      headers: { Accept: "application/json" },
+    }).catch(() => {
+      // Silently ignore all errors - user is already redirected
+    });
   };
 
   return (

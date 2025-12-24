@@ -1,19 +1,17 @@
 import axios from "axios";
 import toast from "react-hot-toast";
-import { getAdminToken, removeAdminToken } from "./tokenCache";
 
 const api = axios.create({
   // Use frontend proxy so Next can forward requests to Laravel and avoid CORS/html errors
   baseURL: "/api",
-  withCredentials: true,
+  withCredentials: true, // Important: Send cookies with requests
   headers: {
     Accept: "application/json",
   },
 });
 
-// Attach token automatically
-// Ensure CSRF cookie is present for stateful requests and attach stored bearer token.
-// We make the request handler async so we can fetch the proxied CSRF cookie when needed.
+// Ensure CSRF cookie is present for stateful requests
+// Laravel Sanctum uses HTTP-only cookies for authentication, so we don't need to attach tokens
 api.interceptors.request.use(async (config) => {
   if (globalThis.window === undefined) return config;
 
@@ -37,49 +35,34 @@ api.interceptors.request.use(async (config) => {
     }
   }
 
-  // Get token from cache (sessionStorage first, then localStorage)
-  // This provides faster access since sessionStorage is typically faster
-  let token: string | null = null;
-  if (globalThis.window !== undefined) {
-    token = getAdminToken();
-    
-    // Fallback to legacy token keys for backward compatibility
-    if (!token) {
-      const tokenKeys = ["token", "access_token"];
-      for (const k of tokenKeys) {
-        const t = globalThis.window.localStorage.getItem(k);
-        if (t) {
-          token = t;
-          break;
-        }
-      }
-    }
-  }
-
-  // ensure headers object exists
-  config.headers = config.headers || {};
-  if (token) {
-    // set Authorization header
-    (config.headers as Record<string, string>).Authorization = `Bearer ${token}`;
-  }
-
   return config;
 });
 
 /**
  * Global 401 handler
+ * When Laravel returns 401, the HTTP-only cookie is already invalid/cleared
  */
 api.interceptors.response.use(
   (res) => res,
   (error) => {
     const status = error?.response?.status;
+    const url = error?.config?.url || "";
+    
     // Avoid handling during SSR or non-browser contexts
     if (globalThis.window !== undefined && status === 401) {
-      try {
-        // Clear token from both localStorage and sessionStorage (cache)
-        removeAdminToken();
-      } catch {}
+      // Don't redirect or show toast if we're already on the login page
+      const currentPath = globalThis.window.location.pathname;
+      if (currentPath === "/" || currentPath === "/login") {
+        // Already on login page, silently reject the error
+        return Promise.reject(error);
+      }
 
+      // Don't show error for logout endpoint - it's expected to return 401 if already logged out
+      if (url.includes("/admin/logout")) {
+        return Promise.reject(error);
+      }
+
+      // Only show toast and redirect if NOT on login page and NOT logout endpoint
       try {
         toast.error("Unauthenticated. Redirecting to login...");
       } catch {}

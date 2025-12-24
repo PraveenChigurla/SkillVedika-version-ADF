@@ -5,15 +5,15 @@ export async function POST(req) {
     const body = await req.json();
 
     const incomingCookie = req.headers.get("cookie") || "";
-    const incomingAuth = req.headers.get("authorization") || req.headers.get("Authorization") || "";
 
     const res = await fetch(BACKEND_URL.replace("/api", "") + "/api/admin/forgot-password", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        ...(incomingAuth ? { Authorization: incomingAuth } : {}),
+        Accept: "application/json",
         ...(incomingCookie ? { cookie: incomingCookie } : {}),
       },
+      credentials: "include", // Important for cookies
       body: JSON.stringify(body),
     });
 

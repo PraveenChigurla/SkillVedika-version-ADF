@@ -19,7 +19,7 @@ export default function ContactPage() {
   // --------------------------
   const [bannerHeading, setBannerHeading] = useState<string>("");
   const [bannerDescription, setBannerDescription] = useState<string>("");
-  const [bannerImage, setBannerImage] = useState<string>("/default-uploads/contact.png");
+  const [bannerImage, setBannerImage] = useState<string>("/default-uploads/Skill-vedika-Logo.jpg");
   // We now upload images via BannerBox -> cloud and store URL in `bannerImage`.
   const [bannerImageRemove, setBannerImageRemove] = useState<boolean>(false);
 
@@ -314,7 +314,7 @@ export default function ContactPage() {
         setBannerDescription((bodyObj.hero_description as string) ?? "");
         setButtonTitle((bodyObj.hero_button as string) ?? "");
         setButtonTitleLink((bodyObj.hero_button_link as string) ?? "");
-        setBannerImage((bodyObj.hero_image as string) ?? "/default-uploads/contact.png");
+        setBannerImage((bodyObj.hero_image as string) ?? "/default-uploads/Skill-vedika-Logo.jpg");
         setHeroSectionFooter((bodyObj.contactus_target as string) ?? "");
         setSubTitle((bodyObj.contactus_subtitle as string) ?? "");
         

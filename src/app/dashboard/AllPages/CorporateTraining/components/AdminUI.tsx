@@ -17,16 +17,25 @@ export function AdminCard({ title, children }: { title: string; children: ReactN
   );
 }
 
-function AdminInputComponent({ label, value, onChange, onBlur }: { label: string; value: string | undefined; onChange?: (val: string) => void; onBlur?: (e: React.FocusEvent<HTMLInputElement>) => void }) {
+function AdminInputComponent({ label, value, onChange, onBlur, id, required }: { label: string; value: string | undefined; onChange?: (val: string) => void; onBlur?: (e: React.FocusEvent<HTMLInputElement>) => void; id?: string; required?: boolean }) {
+  // Performance: Generate stable ID to prevent re-renders
+  const inputId = id || `admin-input-${label.toLowerCase().replace(/\s+/g, '-')}`;
+  
   return (
     <div>
-      <label className="text-gray-600 font-semibold mb-1 block">{label}</label>
+      <label htmlFor={inputId} className="text-gray-600 font-semibold mb-1 block">
+        {label}
+        {required && <span className="text-red-500 ml-1" aria-label="required">*</span>}
+      </label>
       <input
+        id={inputId}
         type="text"
         value={value ?? ""}
         onChange={(e) => onChange && onChange(e.target.value)}
         onBlur={(e) => onBlur && onBlur(e)}
-        className="w-full px-4 py-2 rounded-lg border border-gray-300 bg-white focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
+        className="w-full px-4 py-2 rounded-lg border border-gray-300 bg-white focus:ring-2 focus:ring-blue-400 focus:border-blue-400 focus:outline-none transition"
+        aria-required={required}
+        aria-label={label}
       />
     </div>
   );
@@ -35,16 +44,25 @@ function AdminInputComponent({ label, value, onChange, onBlur }: { label: string
 export const AdminInput = React.memo(AdminInputComponent);
 
 // Added Textarea component which was missing in original snippet but good practice
-function AdminTextareaComponent({ label, value, onChange, rows = 4, onBlur }: { label: string; value: string | undefined; onChange?: (val: string) => void; rows?: number; onBlur?: (e: React.FocusEvent<HTMLTextAreaElement>) => void }) {
+function AdminTextareaComponent({ label, value, onChange, rows = 4, onBlur, id, required }: { label: string; value: string | undefined; onChange?: (val: string) => void; rows?: number; onBlur?: (e: React.FocusEvent<HTMLTextAreaElement>) => void; id?: string; required?: boolean }) {
+  // Performance: Generate stable ID to prevent re-renders
+  const textareaId = id || `admin-textarea-${label.toLowerCase().replace(/\s+/g, '-')}`;
+  
   return (
     <div>
-      <label className="text-gray-600 font-semibold mb-1 block">{label}</label>
+      <label htmlFor={textareaId} className="text-gray-600 font-semibold mb-1 block">
+        {label}
+        {required && <span className="text-red-500 ml-1" aria-label="required">*</span>}
+      </label>
       <textarea
+        id={textareaId}
         rows={rows}
         value={value ?? ""}
         onChange={(e) => onChange && onChange(e.target.value)}
         onBlur={(e) => onBlur && onBlur(e)}
-        className="w-full px-4 py-2 rounded-lg border border-gray-300 bg-white focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
+        className="w-full px-4 py-2 rounded-lg border border-gray-300 bg-white focus:ring-2 focus:ring-blue-400 focus:border-blue-400 focus:outline-none transition"
+        aria-required={required}
+        aria-label={label}
       />
     </div>
   );
@@ -119,10 +137,21 @@ export function BannerBox({ label, image, onUpload, iconSize = 18 }: { label: st
               : image && typeof image === "object"
               ? (image.url as string) || (image.secure_url as string) || (image.path as string) || ""
               : "";
+          
+          // Validate image URL - skip invalid paths (like /mnt/data/... or /contact-us/...)
+          const isValidUrl = (url: string): boolean => {
+            if (!url) return false;
+            // Valid if it's a full URL (http/https)
+            if (url.startsWith("http://") || url.startsWith("https://")) return true;
+            // Valid if it starts with / but not invalid backend paths
+            if (url.startsWith("/") && !url.startsWith("/mnt/") && !url.startsWith("/contact-us/")) return true;
+            return false;
+          };
+          
           // Use an existing fallback image shipped in public/default-uploads.
           // placeholder.png did not exist in the repo which caused 404s in dev.
           const finalSrc: string =
-            previewSrc || src || "/default-uploads/Skill-vedika-Logo.jpg";
+            previewSrc || (src && isValidUrl(src) ? src : "") || "/default-uploads/Skill-vedika-Logo.jpg";
 
           return (
             <div className="flex flex-col items-start gap-2">

@@ -739,20 +739,8 @@ export default function CourseLeads() {
   }, []);
 
   const authCfg = useCallback(() => {
-    const keys = ["token", "admin_token", "access_token"];
-    if (globalThis.window === undefined) return { withCredentials: true };
-    let token: string | null = null;
-    for (const k of keys) {
-      const t = localStorage.getItem(k);
-      if (t) {
-        token = t;
-        break;
-      }
-    }
-
-    return token
-      ? { withCredentials: true, headers: { Authorization: `Bearer ${token}` } }
-      : { withCredentials: true };
+    // Authentication is handled via HTTP-only cookies automatically
+    return { withCredentials: true };
   }, []);
 
   const updateStatus = useCallback(
@@ -794,11 +782,7 @@ export default function CourseLeads() {
           JSON.stringify(err?.response?.data || err.message);
         if (statusCode === 401) {
           toast.error("Unauthenticated. Redirecting to login...");
-          try {
-            localStorage.removeItem("admin_token");
-          } catch {
-            // ignore
-          }
+          // HTTP-only cookie is already invalid/cleared by Laravel
           router.push("/");
         } else if (statusCode === 404) {
           toast.error(`Not found (404): ${serverMsg}`);
