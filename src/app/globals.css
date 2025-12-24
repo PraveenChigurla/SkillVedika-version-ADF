@@ -1,0 +1,91 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+/* ✅ Hide scrollbar but keep scrolling functional */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  overflow-y: auto;
+  scroll-behavior: smooth;
+}
+
+ .no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+
+/* nice shadow transition for cards */
+.sidebar-logo-card {
+  transition: transform 200ms ease, box-shadow 300ms ease;
+}
+
+/* optional small helper to make hover glows more subtle */
+.sidebar-glow {
+  box-shadow: 0 6px 18px rgba(16, 24, 40, 0.06);
+}
+
+.tool-btn {
+  padding: 4px 8px;
+  border: 1px solid #d0d0d0;
+  background: #f9f9f9;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.tool-btn:hover {
+  background: #efefef;
+}
+
+/* Remove inner white box & border from TipTap Editor */
+.ProseMirror {
+  border: none !important;
+  outline: none !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+
+
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.animate-slideUp {
+  animation: slideUp 0.25s ease-out;
+}
+
