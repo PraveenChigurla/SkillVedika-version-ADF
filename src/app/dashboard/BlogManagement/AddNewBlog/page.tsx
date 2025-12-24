@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import TipTapEditor from "@/app/dashboard/AllPages/CorporateTraining/components/TipTapEditor";
 import {
@@ -36,7 +36,7 @@ interface BlogCategory {
   name: string;
 }
 
-export default function AddNewBlogPage() {
+function AddNewBlogContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const blogId = searchParams.get("blogId");
@@ -413,5 +413,17 @@ export default function AddNewBlogPage() {
         </button>
       </div>
     </div>
+  );
+}
+
+export default function AddNewBlogPage() {
+  return (
+    <Suspense fallback={
+      <div className="p-6 flex items-center justify-center">
+        <div className="text-gray-600">Loading...</div>
+      </div>
+    }>
+      <AddNewBlogContent />
+    </Suspense>
   );
 }

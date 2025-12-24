@@ -170,14 +170,14 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import toast, { Toaster } from "react-hot-toast";
 import { FiMail, FiLock, FiEye, FiEyeOff, FiLogIn } from "react-icons/fi";
 import axios from "../utils/axios";
 import { setAdminToken, getAdminToken } from "../utils/tokenCache";
 
-export default function LoginPage() {
+function LoginPageContent() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
@@ -336,5 +336,17 @@ export default function LoginPage() {
         </div>
       </div>
     </>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center px-6" style={{ background: "#0F1E33" }}>
+        <div className="text-white">Loading...</div>
+      </div>
+    }>
+      <LoginPageContent />
+    </Suspense>
   );
 }
