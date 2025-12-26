@@ -4,7 +4,6 @@ import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import toast, { Toaster } from "react-hot-toast";
 import { FiMail, FiLock, FiEye, FiEyeOff, FiLogIn } from "react-icons/fi";
-import axios from "../utils/axios";
 
 function LoginPageContent() {
   const [email, setEmail] = useState("");
@@ -40,11 +39,58 @@ function LoginPageContent() {
     setError("");
 
     try {
-      // axios instance will ensure CSRF cookie (via interceptor)
-      // Laravel will set HTTP-only cookie automatically
-      const res = await axios.post("/admin/login", { email, password });
+      // Validate inputs before sending
+      if (!email || !password) {
+        setError("Email and password are required");
+        setLoading(false);
+        return;
+      }
 
-      const data = res.data;
+      // Debug: Log what we're sending
+      console.log('[Login Page] Sending login request with:', { 
+        email: email ? email.substring(0, 20) + '...' : 'EMPTY', 
+        password: password ? '***' : 'EMPTY' 
+      });
+
+      // Use fetch instead of axios to ensure Set-Cookie header is processed correctly
+      // Axios might not handle Set-Cookie headers the same way as fetch
+      const requestBody = { email: email.trim(), password: password.trim() };
+      console.log('[Login Page] Request body:', requestBody);
+      
+      const loginResponse = await fetch("/api/admin/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        credentials: "include", // Critical: Include cookies in request/response
+        body: JSON.stringify(requestBody),
+      });
+
+      console.log('[Login Page] Login response status:', loginResponse.status);
+      
+      // Check Set-Cookie header
+      const setCookieHeader = loginResponse.headers.get("set-cookie");
+      console.log('[Login Page] Set-Cookie header present:', !!setCookieHeader);
+      if (setCookieHeader) {
+        console.log('[Login Page] Set-Cookie preview:', setCookieHeader.substring(0, 200));
+      }
+      
+      // Parse response (works for both success and error)
+      const data = await loginResponse.json();
+      console.log('[Login Page] Login response data:', data);
+      
+      // Check if response indicates success
+      if (loginResponse.status !== 200) {
+        // Extract error message from Laravel validation response
+        let errorMessage = data?.message || "Login failed";
+        if (data?.errors) {
+          // Laravel validation errors format
+          const errorMessages = Object.values(data.errors).flat();
+          errorMessage = errorMessages.join(". ");
+        }
+        throw new Error(errorMessage);
+      }
 
       // Save avatar if returned (for display purposes only)
       if (data?.user?.avatar) {
@@ -53,11 +99,34 @@ function LoginPageContent() {
         globalThis.window.dispatchEvent(new CustomEvent("admin:profileUpdated", { detail: { avatar: data.user.avatar } }));
       }
 
-      // Redirect to dashboard
+      // Note: HTTP-only cookies won't be visible in document.cookie
+      // The cookie is set by the server via Set-Cookie header
+      // We need to wait a bit for the browser to process it before redirecting
+
+      // Redirect to dashboard or the originally requested page
       // Authentication is handled by HTTP-only cookie, no token storage needed
-      globalThis.window.location.href = "/dashboard";
+      const redirectTo = params.get("redirect") || "/dashboard";
+      console.log('[Login Page] Login successful, redirecting to:', redirectTo);
+      
+      // Use window.location.replace for immediate redirect (no back button history)
+      // Small delay to ensure Set-Cookie header is processed by browser
+      // The cookie will be available on the next request
+      setTimeout(() => {
+        if (globalThis.window) {
+          console.log('[Login Page] Executing redirect...');
+          // Use replace instead of href to avoid adding to history
+          globalThis.window.location.replace(redirectTo);
+        }
+      }, 100); // Reduced delay - cookie should be set immediately
     } catch (err: any) {
-      const msg = err?.response?.data?.message || err?.message || "Something went wrong. Check backend connection.";
+      // Extract error message (works for both fetch and axios errors)
+      let msg = "Something went wrong. Check backend connection.";
+      if (err?.message) {
+        msg = err.message;
+      } else if (err?.response?.data?.message) {
+        msg = err.response.data.message;
+      }
+      console.error('[Login Page] Login error:', err);
       setError(msg);
     }
 

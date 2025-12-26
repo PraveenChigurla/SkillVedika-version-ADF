@@ -8,6 +8,7 @@ import { useState, useRef, useEffect } from "react";
 // import Image from "next/image";
 import { FaBars, FaTimes, FaUser, FaSignOutAlt } from "react-icons/fa";
 import { useRouter } from "next/navigation";
+import api from "@/utils/axios";
 
 interface HeaderProps {
   readonly onToggleSidebar: () => void;
@@ -105,28 +106,28 @@ export default function Header({
   const handleLogout = async () => {
     setIsMenuOpen(false);
 
-    // Clear local avatar first
     try {
       if (globalThis.window !== undefined) {
         globalThis.window.localStorage.removeItem("admin_avatar");
       }
-    } catch {
-      // Ignore storage errors
+    } catch {}
+
+    try {
+      // Use the configured api instance which handles cookies and CSRF automatically
+      // This goes through the Next.js proxy route at /api/admin/logout/route.js
+      // baseURL is "/api", so this becomes "/api/admin/logout"
+      console.log("[Header.tsx] Calling logout endpoint: /admin/logout (will become /api/admin/logout)");
+      const response = await api.post("/admin/logout");
+      console.log("[Header.tsx] Logout response received:", response.status, response.data);
+    } catch (error: any) {
+      // Log error in development, but proceed with logout anyway
+      console.error("[Header.tsx] Logout error:", error?.response?.status, error?.response?.data || error?.message);
+      if (process.env.NODE_ENV === "development") {
+        console.error("Failed to logout:", error);
+      }
     }
-
-    // Redirect immediately - don't wait for logout API call
-    // Backend will handle cookie clearing if session is still valid
+    console.log("[Header.tsx] Logout process completed, redirecting...");
     router.push("/?logout=1");
-
-    // Try to call logout endpoint in background, but suppress all errors
-    // Use fetch directly to avoid axios interceptors showing errors
-    fetch("/api/admin/logout", {
-      method: "POST",
-      credentials: "include",
-      headers: { Accept: "application/json" },
-    }).catch(() => {
-      // Silently ignore all errors - user is already redirected
-    });
   };
 
   return (

@@ -13,6 +13,8 @@ export async function GET(req) {
       },
     });
 
+    console.log('csrf-cookie proxy response', res);
+
     // forward Set-Cookie headers if backend set them
     const setCookie = res.headers.get('set-cookie');
     console.log('csrf-cookie proxy set-cookie header present=', !!setCookie, 'valuePreview=', setCookie ? setCookie.substring(0,200) : '');
